@@ -5,7 +5,8 @@ output: html_notebook
 
 1. load libraries
 ```{r}
-
+library(Rmisc)
+library(ggplot2)
 ```
 
 2. Load data
@@ -81,4 +82,36 @@ for (i in 1:nrow(d)){
 d<-d[d$group == -.5,]
 ```
 
-4
+4. explore
+
+```{r}
+
+#average over trials
+
+
+
+measured_variables<-c('latencyN2', 'amplitudeN2', 'latencyP3', 'amplitudeP3')
+
+for (i in 1:length(measured_variables)){
+
+d_subset<-summarySE(data=d, measurevar = measured_variables[i], groupvars = c('session_plot','go_nogo_plot', 'correctness_plot', 'sub'))
+d_subset$session_plot<-factor(d_subset$session_plot)
+d_subset$go_nogo_plot<-factor(d_subset$go_nogo_plot)
+d_subset$correctness_plot<-factor(d_subset$correctness_plot)
+d_subset$sub<-factor(d_subset$sub)
+
+
+individual_plot<-ggplot(d_subset, aes_string(x='session_plot', y=measured_variables[i] ))+
+  geom_point(aes(col=sub))+
+  geom_line(aes(group=sub, col=sub))+
+  facet_wrap(~go_nogo_plot + correctness_plot)
+
+ggsave(sprintf('individual_plot_%s.png', measured_variables[i]))
+}
+
+
+
+
+
+```
+
