@@ -18,7 +18,7 @@ pd <- position_dodge(0.2)
 
 2. load data
 ```{r}
-list_all_files <-list.files("./ind_means_midline/",full.names = TRUE)
+list_all_files <-list.files("D:/Dropbox/Projects/Mindfulness_Natal/ind_means_midline/",full.names = TRUE)
 d<-do.call("rbind",lapply(list_all_files,read.csv,header=TRUE))
 
 #d$condition_past <- d$condition
