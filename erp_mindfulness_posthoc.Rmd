@@ -1,0 +1,84 @@
+---
+title: "erp_mindfulness_posthoc"
+output: html_notebook
+---
+
+1. load libraries
+```{r}
+
+```
+
+2. Load data
+
+```{r}
+list_all_files <-list.files("D:/Dropbox/Projects/Mindfulness_Natal/ind_means_midline/",full.names = TRUE)
+d<-do.call("rbind",lapply(list_all_files,read.csv,header=TRUE))
+
+#d$condition_past <- d$condition
+
+d<-d[d$electrode == 'midline',]
+d$electrode <- factor(d$electrode)
+
+#session 1 = -5
+#session 2 = .5
+
+#mindfulness = -.5
+#coloring = .5
+
+# go = -.5
+# nogo = .5
+
+# correct = -.5
+# incorrect = .5
+
+for (i in 1:nrow(d)){
+  if (d$session[i] == 1){
+    d$session[i] = -.5
+    d$session_plot[i] = 'session_1'
+  }
+  else if (d$session[i] == 2){
+    d$session[i] = .5
+    d$session_plot[i] = 'session_2'
+  }
+  if (d$group[i] == 1){
+    d$group[i] = -.5
+    d$group_plot[i] = 'mindfulness'
+  }
+  else if (d$group[i] == 2){
+    d$group[i] = .5
+    d$group_plot[i] = 'coloring'
+  }
+  if (d$condition[i] == 'GO_correct'){
+    d$go_nogo[i] = -.5
+    d$go_nogo_plot[i] = 'GO'
+  }
+  else if (d$condition[i] == 'NOGO_correct'){
+    d$go_nogo[i] = .5
+    d$go_nogo_plot[i] = 'NOGO'
+  }
+  else if (d$condition[i] == 'NOGO_incorrect'){
+    d$go_nogo[i] = .5
+    d$go_nogo_plot[i] = 'NOGO'
+  }
+  if (d$condition[i] == 'GO_correct'){
+    d$correctness[i] = -.5
+    d$correctness_plot[i] = 'correct'
+  }
+  else if (d$condition[i] == 'NOGO_correct'){
+    d$correctness[i] = -.5
+    d$correctness_plot[i] = 'correct'
+  }
+  else if (d$condition[i] == 'NOGO_incorrect'){
+    d$correctness[i] = .5
+    d$correctness_plot[i] = 'incorrect'
+  }
+}
+
+```
+
+3. subset only mindfulness
+```{r}
+d<-d[d$group == -.5,]
+```
+
+4
