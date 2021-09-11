@@ -7,6 +7,8 @@ output: html_notebook
 ```{r}
 library(Rmisc)
 library(ggplot2)
+library(tidyverse)
+library(readxl)
 ```
 
 2. Load data
@@ -82,11 +84,10 @@ for (i in 1:nrow(d)){
 d<-d[d$group == -.5,]
 ```
 
-4. explore
+4. explore individual changes
 
 ```{r}
 
-#average over trials
 
 
 
@@ -112,6 +113,106 @@ ggsave(sprintf('individual_plot_%s.png', measured_variables[i]))
 
 
 
+
+```
+5. correlation for each condition with questionnaire+
+
+```{r}
+
+measured_variables <- c('latencyN2', 'amplitudeN2', 'latencyP3', 'amplitudeP3')
+behavioral_variables <- names(d_q[4:14])
+sessions = c('session_1', 'session_2')
+conditions <- c('go_correct', 'nogo_correct', 'nogo_incorrect')
+
+d_q <- read.csv("D:/Dropbox/Projects/Mindfulness_Natal/behav_data_arthur.csv")
+d_q <- d_q[d_q$group == 1,]
+
+d_q_session1 <- d_q[d_q$session == 1,]
+d_q_session2 <- d_q[d_q$session == 2,]
+d_q_diff <-abs(d_q_session1 - d_q_session2) 
+
+cor_data <-data.frame()
+
+for (i in 1:length(measured_variables)){
+  d_subset<-summarySE(data=d, measurevar = measured_variables[i], groupvars = c('session_plot','go_nogo_plot', 'correctness_plot', 'sub'))
+  for (session in 1:2){
+    for(condition in 1:3){
+      if (condition==1){
+        d_erp <- d_subset[d_subset$session_plot == sessions[session] & d_subset$go_nogo_plot == 'GO',]
+      }
+      if (condition==2){
+        d_erp <- d_subset[d_subset$session_plot == sessions[session] & d_subset$go_nogo_plot == 'NOGO' & d_subset$correctness_plot == 'correct',]
+      }
+      if (condition==3){
+        d_erp <- d_subset[d_subset$session_plot == sessions[session] & d_subset$go_nogo_plot == 'NOGO' & d_subset$correctness_plot == 'incorrect',]
+      }
+      
+      for (j in 1:length(behavioral_variables)){
+        d_cor <- data.frame()
+        d_cor<-rbind(d_erp[6])
+        d_cor[2]<-d_q_session1[behavioral_variables[j]]
+        cor_results <-cor.test(unname(unlist(d_cor[1])), unname(unlist(d_cor[2])))
+append_data <- c(measured_variables[i],behavioral_variables[j], sessions[session], conditions[condition], unname(cor_results$estimate), cor_results$p.value)
+        cor_data<-rbind(cor_data,append_data)
+            }
+  }
+  }
+   
+}
+
+#write.csv(cor_data, 'cor_data.csv')
+
+
+
+```
+
+
+
+6. calculate differences between session for all conditions and correlate with questionnaire
+
+```{r}
+
+d_q_diff <-abs(d_q_session1 - d_q_session2) 
+cor_data_diff <- data.frame()
+
+behavioral_variables <- names(d_q[c(4,6:14)])
+
+
+for (i in 1:length(measured_variables)){
+  d_subset<-summarySE(data=d, measurevar = measured_variables[i], groupvars = c('session_plot','go_nogo_plot', 'correctness_plot', 'sub'))
+   for(condition in 1:3){
+      if (condition==1){
+         d_session1_go_correct<-d_subset[d_subset$session_plot == 'session_1' & d_subset$go_nogo_plot == 'GO', ]
+  d_session2_go_correct<-d_subset[d_subset$session_plot == 'session_2' & d_subset$go_nogo_plot == 'GO', ]
+  d_diff <- abs(d_session1_go_correct[6] - d_session2_go_correct[6])
+      }
+      if (condition==2){
+          d_session1_nogo_correct<-d_subset[d_subset$session_plot == 'session_1' & d_subset$go_nogo_plot == 'NOGO' & d_subset$correctness_plot == 'correct', ]
+  d_session2_nogo_correct<-d_subset[d_subset$session_plot == 'session_2' & d_subset$go_nogo_plot == 'NOGO' & d_subset$correctness_plot == 'correct', ]
+  d_diff <- abs(d_session1_nogo_correct[6] - d_session2_nogo_correct[6])
+      }
+      if (condition==3){
+    d_session1_nogo_incorrect<-d_subset[d_subset$session_plot == 'session_1' & d_subset$go_nogo_plot == 'NOGO' & d_subset$correctness_plot == 'incorrect', ]
+  d_session2_nogo_incorrect<-d_subset[d_subset$session_plot == 'session_2' & d_subset$go_nogo_plot == 'NOGO' & d_subset$correctness_plot == 'incorrect', ]
+  d_diff <- abs(d_session1_nogo_incorrect[6] - d_session2_nogo_incorrect[6])
+      }
+  
+      for (j in 1:length(behavioral_variables)){
+        d_cor <- data.frame()
+        d_cor<-rbind(d_diff)
+        d_cor[2]<-d_q_diff[behavioral_variables[j]]
+        cor_results <-cor.test(unname(unlist(d_cor[1])), unname(unlist(d_cor[2])))
+append_data <- c(measured_variables[i],behavioral_variables[j], conditions[condition], unname(cor_results$estimate), cor_results$p.value)
+        cor_data_diff<-rbind(cor_data_diff,append_data)
+            }
+  }
+
+
+}
+
+
+
+write.csv(cor_data_diff, 'cor_data_diff.csv')
 
 ```
 
