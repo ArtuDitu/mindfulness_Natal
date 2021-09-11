@@ -1,0 +1,267 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+1. Load libraries
+```{r}
+library(ggplot2)
+library(Rmisc)
+library(lme4)
+library(lmerTest)
+library(ggthemes)
+library(ggridges)
+library(cowplot)
+library(emmeans)
+
+# set the options to display decimal numbers
+options(scipen = 999)
+pd <- position_dodge(0.2)
+```
+
+2. load data
+
+```{r}
+d<-read.csv('behavioral_data.csv')
+d<-d[d$Procedure.Trial. == 'TrialProc', ]
+group1 <- c(6, 8, 10, 14, 15, 17, 18, 22, 23, 24, 26, 28, 32, 33, 34, 36, 38, 41, 44, 46)
+group2 <- c(5, 7, 9, 11, 12, 13, 16, 19, 20, 21, 25, 29, 30, 35, 37, 40, 42, 43, 47, 48)
+go <- c(1,2,4,5,6,7,8,9)
+nogo<-c(3)
+
+
+for (i in 1:nrow(d)){
+if (any(d$Subject[i] == group1)){
+    d$group[i] = 'mindfulness'
+  } else if (any(d$Subject[i] == group2)){
+    d$group[i] = 'coloring'
+  }
+}
+
+
+for (i in 1:nrow(d)){
+if (any(d$Digit[i] == go)){
+    d$condition[i] = 'go'
+  } else if (d$Digit[i] == 3){
+    d$condition[i] = 'nogo'
+  }
+}
+
+for (i in 1:nrow(d)){
+  if (d$Session[i] == 1){
+    d$Session[i] = -.5
+    d$session_plot[i] = 'session_1'
+  }
+  else if (d$Session[i] == 2){
+    d$Session[i] = .5
+    d$session_plot[i] = 'session_2'
+  }
+  if (d$group[i] == 'mindfulness'){
+    d$group[i] = -.5
+    d$group_plot[i] = 'mindfulness'
+  }
+  else if (d$group[i] == 'coloring'){
+    d$group[i] = .5
+    d$group_plot[i] = 'coloring'
+  }
+  if (d$condition[i] == 'go'){
+    d$condition[i] = -.5
+    d$condition_plot[i] = 'go'
+  }
+  else if (d$condition[i] == 'nogo'){
+    d$condition[i] = .5
+    d$condition_plot[i] = 'nogo'
+  }
+  if (d$Stimulus.ACC[i] == 1){
+    d$correctness[i] = -.5
+    d$correctness_plot[i] = 'incorrect'
+  }
+  else if (d$Stimulus.ACC[i] == 0){
+    d$correctness[i] = .5
+    d$correctness_plot[i] = 'correct'
+  }
+}
+
+d$group <-as.numeric(d$group)
+d$condition <- as.numeric(d$condition)
+
+```
+
+<!-- X. check how many subjects have 90% accuracy -->
+<!-- ```{r} -->
+<!-- d_nogo<-d[d$condition_plot == 'nogo',] -->
+
+<!-- d_summary<- summarySE(data=d_nogo, measurevar = 'Stimulus.ACC', groupvars = c('Subject','Session','group')) -->
+
+<!-- nrow(d_summary[d_summary$Stimulus.ACC > .6, ]) -->
+
+<!-- ``` -->
+
+
+
+3. accuracy
+
+```{r}
+
+summary_ACC_sub <-summarySE(data=d, measurevar = 'Stimulus.ACC', groupvars = c('Subject','Session','group','condition'))
+
+summary_ACC_sub_plot <-summarySE(data=d, measurevar = 'Stimulus.ACC', groupvars = c('Subject','session_plot','group_plot','condition_plot'))
+
+summary_ACC <-summarySE(data=summary_ACC_sub_plot, measurevar = 'Stimulus.ACC', groupvars = c('session_plot','group_plot','condition_plot'))
+
+summary_ACC_session <-summarySE(data=summary_ACC_sub_plot, measurevar = 'Stimulus.ACC', groupvars = c('session_plot'))
+
+summary_ACC_condition <-summarySE(data=summary_ACC_sub_plot, measurevar = 'Stimulus.ACC', groupvars = c('condition_plot'))
+
+summary_ACC_session_condition <-summarySE(data=summary_ACC_sub_plot, measurevar = 'Stimulus.ACC', groupvars = c('session_plot', 'condition_plot'))
+
+plot_ACC_session<-ggplot(data=summary_ACC_session, aes(x = session_plot, y=Stimulus.ACC, fill = ))+
+  geom_col()+
+  geom_errorbar(aes(ymin = Stimulus.ACC - se, ymax = Stimulus.ACC+ se, width = .3))+
+  coord_cartesian(ylim = c(.4,1))+
+  #geom_signif(comparisons = list(c("congruent", 'incongruent')), 
+  #            annotation = "***")+
+  theme_tufte()+
+  theme(legend.position = 'none')
+#plot_ACC_session
+
+plot_ACC_condition<-ggplot(data=summary_ACC_condition, aes(x = condition_plot, y=Stimulus.ACC, fill = ))+
+  geom_col()+
+  geom_errorbar(aes(ymin = Stimulus.ACC - se, ymax = Stimulus.ACC+ se, width = .3))+
+  coord_cartesian(ylim = c(.4,1))+
+  #geom_signif(comparisons = list(c("congruent", 'incongruent')), 
+  #            annotation = "***")+
+  theme_tufte()+
+  theme(legend.position = 'none')
+#plot_ACC_condition
+
+plot_ACC_session_condition<-ggplot()+
+  geom_pointrange(data=summary_ACC_session_condition, aes(x = session_plot, y = Stimulus.ACC, ymin=Stimulus.ACC - se, ymax=Stimulus.ACC + se, shape = condition_plot, colour = condition_plot), position=pd)+
+  geom_line(data = summary_ACC_session_condition, aes(x = session_plot, y = Stimulus.ACC, group = condition_plot, colour = condition_plot), position=pd)+
+  coord_cartesian(ylim = c(.4,1))+
+  theme_tufte()
+#plot_ACC_session_condition
+
+
+lmm_model<-lmer(Stimulus.ACC ~ group * Session * condition + (1|Subject),data=summary_ACC_sub)
+summary(lmm_model)
+
+
+model_post_acc_ses_cond<-emmeans(lmm_model, pairwise~Session|condition, adjust = "Bonferroni")
+model_post_acc_ses_cond
+
+model_post_acc_cond_ses<-emmeans(lmm_model, pairwise~condition|Session, adjust = "Bonferroni")
+model_post_acc_cond_ses
+
+plot<-ggplot(data=summary_ACC, aes(x=as.factor(group_plot), y=Stimulus.ACC, color = interaction(as.factor(session_plot), as.factor(condition_plot))))+
+  geom_pointrange(aes(x = as.factor(group_plot), ymin=Stimulus.ACC - se, ymax=Stimulus.ACC + se), position=pd)+
+  theme_bw()
+#plot
+
+
+plot_fix_combined <- plot_grid(plot_ACC_session, plot_ACC_condition, plot_ACC_session_condition, labels = 'AUTO', nrow = 1, ncol=3)
+plot_fix_combined
+
+```
+
+3. RT models
+
+```{r}
+d_RT <- d[d$Stimulus.RT > 0,]
+d_RT$log_RT <- log(d_RT$Stimulus.RT)
+
+lmm_model_RT<-lmer(log_RT~ group * condition * Session + (1|Subject),data=d_RT)
+summary(lmm_model_RT)
+
+
+# calculate % 
+# (exp(abs(estimate))-1) * 100
+
+# go
+# correct 0
+# incorrect RT
+# 
+# no go
+# correct RT
+# incorrect 0
+
+# interaction 1 condition:group
+
+model_post_rt_cond_gr<-emmeans(lmm_model_RT, pairwise~condition|group, adjust = "Bonferroni")
+model_post_rt_cond_gr
+
+model_post_rt_gr_cond<-emmeans(lmm_model_RT, pairwise~group|condition, adjust = "Bonferroni")
+model_post_rt_gr_cond
+
+
+# interaction 2 session:group
+
+model_post_rt_ses_gr<-emmeans(lmm_model_RT, pairwise~Session|group, adjust = "Bonferroni")
+model_post_rt_ses_gr
+
+model_post_rt_gr_ses<-emmeans(lmm_model_RT, pairwise~group|Session, adjust = "Bonferroni")
+model_post_rt_gr_ses
+
+# interaction 3 session:condition
+
+model_post_rt_ses_cond<-emmeans(lmm_model_RT, pairwise~Session|condition, adjust = "Bonferroni")
+model_post_rt_ses_cond
+
+model_post_rt_cond_ses<-emmeans(lmm_model_RT, pairwise~condition|Session, adjust = "Bonferroni")
+model_post_rt_cond_ses
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+old bs
+
+```{r}
+
+# d_go<-d[d$condition_plot == 'go' & d$Stimulus.ACC == 1,]
+# 
+# summary_RT_sub_plot <-summarySE(data=d_go, measurevar = 'Stimulus.RT', groupvars = c('Subject','session_plot','group_plot'))
+# 
+# summary_RT <-summarySE(data=summary_RT_sub_plot, measurevar = 'Stimulus.RT', groupvars = c('session_plot','group_plot'))
+# 
+# lmm_model<-lmer(Stimulus.RT ~ group * Session + (1|Subject),data=d_go)
+# summary(lmm_model)
+# 
+# plot<-ggplot(data=summary_RT, aes(x=as.factor(group_plot), y=Stimulus.RT, color = as.factor(session_plot)))+
+#   geom_pointrange(aes(x = as.factor(group_plot), ymin=Stimulus.RT - se, ymax=Stimulus.RT + se), position=pd)+
+#   theme_bw()
+# plot
+
+
+
+```
+3. RT nogo correct
+
+```{r}
+
+d_nogo<-d[d$condition_plot == 'nogo' & d$Stimulus.ACC == 0,]
+
+summary_RT_sub_plot <-summarySE(data=d_nogo, measurevar = 'Stimulus.RT', groupvars = c('Subject','session_plot','group_plot'))
+
+summary_RT <-summarySE(data=summary_RT_sub_plot, measurevar = 'Stimulus.RT', groupvars = c('session_plot','group_plot'))
+
+lmm_model<-lmer(Stimulus.RT ~ group * Session + (1|Subject),data=d_nogo)
+summary(lmm_model)
+
+plot<-ggplot(data=summary_RT, aes(x=as.factor(group_plot), y=Stimulus.RT, color = as.factor(session_plot)))+
+  geom_pointrange(aes(x = as.factor(group_plot), ymin=Stimulus.RT - se, ymax=Stimulus.RT + se), position=pd)+
+  theme_bw()
+plot
+
+
+
+```

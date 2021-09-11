@@ -1,0 +1,155 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+1. Load libraries
+```{r}
+library(ggplot2)
+library(Rmisc)
+library(lme4)
+library(lmerTest)
+library(emmeans)
+
+# set the options to display decimal numbers
+options(scipen = 999)
+pd <- position_dodge(0.2)
+```
+
+2. load data
+```{r}
+list_all_files <-list.files("./ind_means_midline/",full.names = TRUE)
+d<-do.call("rbind",lapply(list_all_files,read.csv,header=TRUE))
+
+#d$condition_past <- d$condition
+
+d<-d[d$electrode == 'midline',]
+d$electrode <- factor(d$electrode)
+
+#session 1 = -5
+#session 2 = .5
+
+#mindfulness = -.5
+#coloring = .5
+
+# go = -.5
+# nogo = .5
+
+# correct = -.5
+# incorrect = .5
+
+for (i in 1:nrow(d)){
+  if (d$session[i] == 1){
+    d$session[i] = -.5
+    d$session_plot[i] = 'session_1'
+  }
+  else if (d$session[i] == 2){
+    d$session[i] = .5
+    d$session_plot[i] = 'session_2'
+  }
+  if (d$group[i] == 1){
+    d$group[i] = -.5
+    d$group_plot[i] = 'mindfulness'
+  }
+  else if (d$group[i] == 2){
+    d$group[i] = .5
+    d$group_plot[i] = 'coloring'
+  }
+  if (d$condition[i] == 'GO_correct'){
+    d$go_nogo[i] = -.5
+    d$go_nogo_plot[i] = 'GO'
+  }
+  else if (d$condition[i] == 'NOGO_correct'){
+    d$go_nogo[i] = .5
+    d$go_nogo_plot[i] = 'NOGO'
+  }
+  else if (d$condition[i] == 'NOGO_incorrect'){
+    d$go_nogo[i] = .5
+    d$go_nogo_plot[i] = 'NOGO'
+  }
+  if (d$condition[i] == 'GO_correct'){
+    d$correctness[i] = -.5
+    d$correctness_plot[i] = 'correct'
+  }
+  else if (d$condition[i] == 'NOGO_correct'){
+    d$correctness[i] = -.5
+    d$correctness_plot[i] = 'correct'
+  }
+  else if (d$condition[i] == 'NOGO_incorrect'){
+    d$correctness[i] = .5
+    d$correctness_plot[i] = 'incorrect'
+  }
+}
+
+```
+Analysis N2 and p3
+
+```{r}
+
+#d<-d[d$electrode != 'midline',]
+#d$electrode<-factor(d$electrode)
+
+
+d_N2<-summarySE(data=d, measurevar = 'latencyN2', groupvars = c('session', 'group', 'go_nogo', 'correctness', 'sub', 'electrode'))
+
+# d_CPz <- d[d$electrode == 'CPz',]
+# d_CPz$electrode<-factor(d_CPz$electrode)
+# 
+# d_Cz <- d[d$electrode == 'Cz',]
+# d_Cz$electrode<-factor(d_Cz$electrode)
+# 
+# d_Fz <- d[d$electrode == 'Fz',]
+# d_Fz$electrode<-factor(d_Fz$electrode)
+# 
+# d_Pz <- d[d$electrode == 'Pz',]
+# d_Pz$electrode<-factor(d_Pz$electrode)
+# 
+# 
+# 
+# d_tmp <- d_Fz
+# d_tmp <- summarySE(data=d_tmp, measurevar = 'amplitudeN2', groupvars = c('session', 'group', 'go_nogo', 'correctness', 'sub'))
+
+model_N2 <- lmer(latencyN2 ~ session * group * go_nogo * correctness + (1|sub), data=d_N2)
+summary(model_N2)
+
+model_post<-emmeans(model_N2, pairwise~session|group, adjust = "bonferroni")
+model_post
+
+
+
+d_tmp <- d_Fz
+d_tmp<-summarySE(data=d_tmp, measurevar = 'amplitudeP3', groupvars = c('session', 'group', 'go_nogo', 'correctness', 'sub'))
+
+
+d_P3<-summarySE(data=d, measurevar = 'latencyP3', groupvars = c('session', 'group', 'go_nogo', 'correctness', 'sub', 'electrode'))
+
+model_P3 <- lmer(latencyP3 ~ session * group * go_nogo * correctness + (1|sub), data=d_P3)
+summary(model_P3)
+
+
+
+model_post<-emmeans(model_P3, pairwise~go_nogo|group, adjust = "tukey", pbkrtest.limit = 38893)
+model_post
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
